@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "teacherstudy-ac70b"
+  },
+  "targets": {
+    "teacherstudy-ac70b": {
+      "hosting": {
+        "pdf-splitter": [
+          "teacherstudy-ac70b-pdf-splitter"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

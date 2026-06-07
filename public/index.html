@@ -1,0 +1,614 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>PDF Range Splitter</title>
+    <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #15202b;
+        --muted: #637083;
+        --line: #d9e1eb;
+        --soft: #f4f7fb;
+        --panel: #ffffff;
+        --accent: #0b6bcb;
+        --accent-strong: #064f99;
+        --danger: #bd2c2c;
+        --ok: #16714f;
+        font-family: "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--soft);
+        color: var(--ink);
+      }
+
+      button,
+      input {
+        font: inherit;
+      }
+
+      .app {
+        min-height: 100vh;
+        display: grid;
+        grid-template-columns: minmax(320px, 1fr) minmax(360px, 520px);
+      }
+
+      .preview {
+        display: grid;
+        grid-template-rows: auto 1fr;
+        min-width: 0;
+        background: #e9eef5;
+        border-right: 1px solid var(--line);
+      }
+
+      .topbar,
+      .panel {
+        padding: 24px;
+      }
+
+      .topbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 18px;
+      }
+
+      h1 {
+        margin: 0 0 6px;
+        font-size: clamp(24px, 3vw, 36px);
+        letter-spacing: 0;
+      }
+
+      .subtitle {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+
+      .dropzone {
+        margin: 0 24px 24px;
+        min-height: 360px;
+        border: 2px dashed #9fb0c4;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.66);
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        position: relative;
+      }
+
+      .dropzone.is-over {
+        border-color: var(--accent);
+        background: #eef6ff;
+      }
+
+      .dropzone.has-file .file-input {
+        pointer-events: none;
+      }
+
+      .empty {
+        max-width: 360px;
+        text-align: center;
+        padding: 32px;
+      }
+
+      .empty strong {
+        display: block;
+        font-size: 20px;
+        margin-bottom: 8px;
+      }
+
+      .empty span {
+        color: var(--muted);
+        line-height: 1.6;
+      }
+
+      .file-input {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        cursor: pointer;
+      }
+
+      .pdf-frame {
+        width: 100%;
+        height: 100%;
+        min-height: 360px;
+        border: 0;
+        background: white;
+      }
+
+      .panel {
+        background: var(--panel);
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+        min-width: 0;
+      }
+
+      .file-card {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 16px;
+        background: #fbfcfe;
+      }
+
+      .file-card-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: flex-start;
+      }
+
+      .file-name {
+        font-weight: 700;
+        word-break: break-word;
+      }
+
+      .meta {
+        margin-top: 8px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .range-head,
+      .range-row {
+        display: grid;
+        grid-template-columns: minmax(86px, 1fr) minmax(86px, 1fr) minmax(120px, 1.4fr) 40px;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .range-head {
+        color: var(--muted);
+        font-size: 13px;
+        padding: 0 2px;
+      }
+
+      .range-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .range-row input {
+        width: 100%;
+        min-width: 0;
+        padding: 10px 11px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: white;
+      }
+
+      .range-row input:focus {
+        border-color: var(--accent);
+        outline: 3px solid rgba(11, 107, 203, 0.15);
+      }
+
+      .icon-button,
+      .secondary,
+      .primary {
+        border: 0;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+
+      .icon-button {
+        height: 40px;
+        background: #f1f4f8;
+        color: var(--danger);
+        font-size: 20px;
+      }
+
+      .secondary,
+      .primary {
+        padding: 12px 14px;
+        font-weight: 700;
+      }
+
+      .small-button {
+        padding: 8px 10px;
+        white-space: nowrap;
+      }
+
+      .secondary {
+        background: #edf2f7;
+        color: var(--ink);
+      }
+
+      .primary {
+        background: var(--accent);
+        color: white;
+      }
+
+      .primary:hover {
+        background: var(--accent-strong);
+      }
+
+      .actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      .status {
+        min-height: 24px;
+        line-height: 1.6;
+        color: var(--muted);
+      }
+
+      .status.error {
+        color: var(--danger);
+      }
+
+      .status.ok {
+        color: var(--ok);
+      }
+
+      .privacy {
+        margin-top: auto;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.6;
+        border-top: 1px solid var(--line);
+        padding-top: 16px;
+      }
+
+      @media (max-width: 860px) {
+        .app {
+          grid-template-columns: 1fr;
+        }
+
+        .preview {
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+
+        .dropzone {
+          min-height: 280px;
+        }
+      }
+
+      @media (max-width: 520px) {
+        .topbar,
+        .panel {
+          padding: 18px;
+        }
+
+        .dropzone {
+          margin: 0 18px 18px;
+        }
+
+        .range-head {
+          display: none;
+        }
+
+        .range-row {
+          grid-template-columns: 1fr 1fr 40px;
+        }
+
+        .range-row input[name="label"] {
+          grid-column: 1 / -1;
+        }
+
+        .actions {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="app">
+      <section class="preview" aria-label="PDF 預覽">
+        <div class="topbar">
+          <div>
+            <h1>PDF 分割工具</h1>
+            <p class="subtitle">把 PDF 扔進來，右邊填頁碼範圍，一次切出多個檔案。</p>
+          </div>
+        </div>
+        <div class="dropzone" id="dropzone">
+          <div class="empty" id="emptyState">
+            <strong>拖放 PDF 到這裡</strong>
+            <span>也可以直接點擊選取檔案。載入後會在此預覽。</span>
+          </div>
+          <iframe class="pdf-frame" id="pdfFrame" title="PDF 預覽" hidden></iframe>
+          <input class="file-input" id="fileInput" type="file" accept="application/pdf,.pdf" aria-label="選取 PDF">
+        </div>
+      </section>
+
+      <aside class="panel" aria-label="分割設定">
+        <div class="file-card">
+          <div class="file-card-top">
+            <div class="file-name" id="fileName">尚未選取 PDF</div>
+            <button class="secondary small-button" id="chooseFile" type="button">選取 PDF</button>
+          </div>
+          <div class="meta" id="fileMeta">選取檔案後會顯示頁數。</div>
+        </div>
+
+        <div class="range-head" aria-hidden="true">
+          <span>起始頁</span>
+          <span>結束頁</span>
+          <span>輸出檔名</span>
+          <span></span>
+        </div>
+        <div class="range-list" id="rangeList"></div>
+
+        <div class="actions">
+          <button class="secondary" id="addRange" type="button">新增一組</button>
+          <button class="primary" id="splitPdf" type="button">開始分割</button>
+        </div>
+
+        <div class="status" id="status" role="status" aria-live="polite"></div>
+        <p class="privacy">所有 PDF 都在你的瀏覽器內處理；檔案不會傳到網站伺服器。</p>
+      </aside>
+    </main>
+
+    <script>
+      const { PDFDocument } = PDFLib;
+
+      const dropzone = document.querySelector("#dropzone");
+      const fileInput = document.querySelector("#fileInput");
+      const emptyState = document.querySelector("#emptyState");
+      const pdfFrame = document.querySelector("#pdfFrame");
+      const fileName = document.querySelector("#fileName");
+      const fileMeta = document.querySelector("#fileMeta");
+      const rangeList = document.querySelector("#rangeList");
+      const addRangeButton = document.querySelector("#addRange");
+      const splitButton = document.querySelector("#splitPdf");
+      const chooseFileButton = document.querySelector("#chooseFile");
+      const statusBox = document.querySelector("#status");
+
+      let loadedFile = null;
+      let loadedBytes = null;
+      let loadedPageCount = 0;
+      let previewUrl = null;
+
+      addRange();
+
+      fileInput.addEventListener("change", () => {
+        const [file] = fileInput.files;
+        if (file) {
+          loadPdf(file);
+        }
+      });
+
+      dropzone.addEventListener("dragover", (event) => {
+        event.preventDefault();
+        dropzone.classList.add("is-over");
+      });
+
+      dropzone.addEventListener("dragleave", () => {
+        dropzone.classList.remove("is-over");
+      });
+
+      dropzone.addEventListener("drop", (event) => {
+        event.preventDefault();
+        dropzone.classList.remove("is-over");
+        const [file] = [...event.dataTransfer.files].filter((item) => item.type === "application/pdf" || item.name.toLowerCase().endsWith(".pdf"));
+        if (file) {
+          loadPdf(file);
+        } else {
+          setStatus("請放入 PDF 檔案。", "error");
+        }
+      });
+
+      addRangeButton.addEventListener("click", () => addRange());
+      splitButton.addEventListener("click", splitPdf);
+      chooseFileButton.addEventListener("click", () => fileInput.click());
+
+      async function loadPdf(file) {
+        try {
+          setStatus("正在讀取 PDF...");
+          loadedFile = file;
+          loadedBytes = await file.arrayBuffer();
+          const pdf = await PDFDocument.load(loadedBytes);
+          loadedPageCount = pdf.getPageCount();
+
+          if (previewUrl) {
+            URL.revokeObjectURL(previewUrl);
+          }
+          previewUrl = URL.createObjectURL(file);
+          pdfFrame.src = previewUrl;
+          pdfFrame.hidden = false;
+          emptyState.hidden = true;
+          dropzone.classList.add("has-file");
+
+          fileName.textContent = file.name;
+          fileMeta.textContent = `${loadedPageCount} 頁 · ${formatBytes(file.size)}`;
+          chooseFileButton.textContent = "更換 PDF";
+          setDefaultFirstRange();
+          setStatus("PDF 已載入，可以填寫頁碼範圍。", "ok");
+        } catch (error) {
+          resetLoadedFile();
+          setStatus(`讀取失敗：${error.message}`, "error");
+        }
+      }
+
+      function addRange(values = {}) {
+        const row = document.createElement("div");
+        row.className = "range-row";
+        row.innerHTML = `
+          <input name="from" inputmode="numeric" min="1" type="number" placeholder="例如 1" value="${values.from ?? ""}" aria-label="起始頁">
+          <input name="to" inputmode="numeric" min="1" type="number" placeholder="例如 5" value="${values.to ?? ""}" aria-label="結束頁">
+          <input name="label" type="text" placeholder="例如 第1章" value="${escapeAttribute(values.label ?? "")}" aria-label="輸出檔名">
+          <button class="icon-button" type="button" title="刪除此組" aria-label="刪除此組">×</button>
+        `;
+        row.querySelector("button").addEventListener("click", () => {
+          if (rangeList.children.length > 1) {
+            row.remove();
+          } else {
+            row.querySelectorAll("input").forEach((input) => {
+              input.value = "";
+            });
+          }
+        });
+        rangeList.append(row);
+      }
+
+      function setDefaultFirstRange() {
+        const firstRow = rangeList.querySelector(".range-row");
+        if (!firstRow) {
+          addRange({ from: 1, to: loadedPageCount, label: "split-1" });
+          return;
+        }
+
+        const from = firstRow.querySelector('[name="from"]');
+        const to = firstRow.querySelector('[name="to"]');
+        const label = firstRow.querySelector('[name="label"]');
+        if (!from.value) from.value = "1";
+        if (!to.value) to.value = String(loadedPageCount);
+        if (!label.value) label.value = "split-1";
+      }
+
+      async function splitPdf() {
+        if (!loadedBytes || !loadedFile) {
+          setStatus("請先選取一個 PDF。", "error");
+          return;
+        }
+
+        const ranges = getRanges();
+        if (!ranges.length) {
+          return;
+        }
+
+        try {
+          splitButton.disabled = true;
+          setStatus("正在分割 PDF...");
+
+          const sourcePdf = await PDFDocument.load(loadedBytes);
+          const outputs = [];
+
+          for (const [index, range] of ranges.entries()) {
+            const newPdf = await PDFDocument.create();
+            const pageIndexes = [];
+            for (let page = range.from; page <= range.to; page += 1) {
+              pageIndexes.push(page - 1);
+            }
+            const copiedPages = await newPdf.copyPages(sourcePdf, pageIndexes);
+            copiedPages.forEach((page) => newPdf.addPage(page));
+
+            const bytes = await newPdf.save();
+            outputs.push({
+              filename: buildFilename(range, index),
+              bytes
+            });
+          }
+
+          if (outputs.length === 1) {
+            downloadBlob(new Blob([outputs[0].bytes], { type: "application/pdf" }), outputs[0].filename);
+            setStatus(`完成：已產出 ${outputs[0].filename}`, "ok");
+          } else {
+            const zip = new JSZip();
+            outputs.forEach((output) => zip.file(output.filename, output.bytes));
+            const zipBlob = await zip.generateAsync({ type: "blob" });
+            downloadBlob(zipBlob, `${baseName(loadedFile.name)}-split.zip`);
+            setStatus(`完成：已打包 ${outputs.length} 個 PDF。`, "ok");
+          }
+        } catch (error) {
+          setStatus(`分割失敗：${error.message}`, "error");
+        } finally {
+          splitButton.disabled = false;
+        }
+      }
+
+      function getRanges() {
+        const rows = [...rangeList.querySelectorAll(".range-row")];
+        const ranges = [];
+
+        for (const [index, row] of rows.entries()) {
+          const from = Number(row.querySelector('[name="from"]').value);
+          const to = Number(row.querySelector('[name="to"]').value);
+          const label = row.querySelector('[name="label"]').value.trim();
+
+          if (!from && !to && !label) {
+            continue;
+          }
+
+          if (!Number.isInteger(from) || !Number.isInteger(to)) {
+            setStatus(`第 ${index + 1} 組請填入完整頁碼。`, "error");
+            return [];
+          }
+
+          if (from < 1 || to < 1 || from > loadedPageCount || to > loadedPageCount) {
+            setStatus(`第 ${index + 1} 組頁碼需介於 1 到 ${loadedPageCount}。`, "error");
+            return [];
+          }
+
+          if (from > to) {
+            setStatus(`第 ${index + 1} 組的起始頁不可大於結束頁。`, "error");
+            return [];
+          }
+
+          ranges.push({ from, to, label });
+        }
+
+        if (!ranges.length) {
+          setStatus("請至少填寫一組頁碼範圍。", "error");
+        }
+
+        return ranges;
+      }
+
+      function buildFilename(range, index) {
+        const label = sanitizeFilename(range.label || `split-${index + 1}`);
+        return `${label}-p${range.from}-${range.to}.pdf`;
+      }
+
+      function downloadBlob(blob, filename) {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = filename;
+        document.body.append(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1500);
+      }
+
+      function setStatus(message, type = "") {
+        statusBox.textContent = message;
+        statusBox.className = `status ${type}`.trim();
+      }
+
+      function resetLoadedFile() {
+        loadedFile = null;
+        loadedBytes = null;
+        loadedPageCount = 0;
+        pdfFrame.hidden = true;
+        emptyState.hidden = false;
+        dropzone.classList.remove("has-file");
+        fileName.textContent = "尚未選取 PDF";
+        fileMeta.textContent = "選取檔案後會顯示頁數。";
+        chooseFileButton.textContent = "選取 PDF";
+      }
+
+      function baseName(name) {
+        return sanitizeFilename(name.replace(/\.pdf$/i, ""));
+      }
+
+      function sanitizeFilename(value) {
+        return value.replace(/[\\/:*?"<>|]/g, "-").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "") || "split";
+      }
+
+      function escapeAttribute(value) {
+        return String(value).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+      }
+
+      function formatBytes(bytes) {
+        if (bytes < 1024) return `${bytes} B`;
+        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+        return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+      }
+    </script>
+  </body>
+</html>
