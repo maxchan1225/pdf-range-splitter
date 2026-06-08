@@ -33,14 +33,20 @@
       }
 
       button,
-      input {
+      input,
+      select {
         font: inherit;
+      }
+
+      button:disabled {
+        cursor: wait;
+        opacity: 0.62;
       }
 
       .app {
         min-height: 100vh;
         display: grid;
-        grid-template-columns: minmax(320px, 1fr) minmax(360px, 520px);
+        grid-template-columns: minmax(320px, 1fr) minmax(390px, 560px);
       }
 
       .preview {
@@ -136,35 +142,46 @@
         min-width: 0;
       }
 
-      .file-card {
+      .file-card,
+      .tool-section {
         border: 1px solid var(--line);
         border-radius: 8px;
         padding: 16px;
         background: #fbfcfe;
       }
 
-      .file-card-top {
+      .file-card-top,
+      .section-title {
         display: flex;
         justify-content: space-between;
         gap: 12px;
         align-items: flex-start;
       }
 
-      .file-name {
+      .file-name,
+      .section-title strong {
         font-weight: 700;
         word-break: break-word;
       }
 
+      .section-title {
+        margin-bottom: 12px;
+      }
+
+      .section-title span,
       .meta {
-        margin-top: 8px;
         color: var(--muted);
         font-size: 14px;
+      }
+
+      .meta {
+        margin-top: 8px;
       }
 
       .range-head,
       .range-row {
         display: grid;
-        grid-template-columns: minmax(86px, 1fr) minmax(86px, 1fr) minmax(120px, 1.4fr) 40px;
+        grid-template-columns: minmax(78px, 0.8fr) minmax(78px, 0.8fr) minmax(120px, 1.4fr) 40px;
         gap: 10px;
         align-items: center;
       }
@@ -175,13 +192,17 @@
         padding: 0 2px;
       }
 
-      .range-list {
+      .range-list,
+      .tool-grid,
+      .merge-list {
         display: flex;
         flex-direction: column;
         gap: 10px;
       }
 
-      .range-row input {
+      .range-row input,
+      .tool-row input,
+      .tool-row select {
         width: 100%;
         min-width: 0;
         padding: 10px 11px;
@@ -190,14 +211,49 @@
         background: white;
       }
 
-      .range-row input:focus {
+      .range-row input:focus,
+      .tool-row input:focus,
+      .tool-row select:focus {
         border-color: var(--accent);
         outline: 3px solid rgba(11, 107, 203, 0.15);
       }
 
+      .tool-row {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .tool-row.three {
+        grid-template-columns: 1fr 112px auto;
+      }
+
+      .quick-actions {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+      }
+
+      .merge-list {
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.5;
+        margin-top: 8px;
+      }
+
+      .merge-file {
+        overflow-wrap: anywhere;
+      }
+
+      .merge-input {
+        display: none;
+      }
+
       .icon-button,
       .secondary,
-      .primary {
+      .primary,
+      .ghost {
         border: 0;
         border-radius: 6px;
         cursor: pointer;
@@ -211,7 +267,8 @@
       }
 
       .secondary,
-      .primary {
+      .primary,
+      .ghost {
         padding: 12px 14px;
         font-weight: 700;
       }
@@ -224,6 +281,12 @@
       .secondary {
         background: #edf2f7;
         color: var(--ink);
+      }
+
+      .ghost {
+        background: white;
+        color: var(--ink);
+        border: 1px solid var(--line);
       }
 
       .primary {
@@ -264,7 +327,7 @@
         padding-top: 16px;
       }
 
-      @media (max-width: 860px) {
+      @media (max-width: 900px) {
         .app {
           grid-template-columns: 1fr;
         }
@@ -279,7 +342,7 @@
         }
       }
 
-      @media (max-width: 520px) {
+      @media (max-width: 560px) {
         .topbar,
         .panel {
           padding: 18px;
@@ -301,7 +364,10 @@
           grid-column: 1 / -1;
         }
 
-        .actions {
+        .actions,
+        .quick-actions,
+        .tool-row,
+        .tool-row.three {
           grid-template-columns: 1fr;
         }
       }
@@ -313,7 +379,7 @@
         <div class="topbar">
           <div>
             <h1>PDF 分割工具</h1>
-            <p class="subtitle">把 PDF 扔進來，右邊填頁碼範圍，一次切出多個檔案。</p>
+            <p class="subtitle">把 PDF 扔進來，填頁碼範圍；也能刪頁、旋轉、拆單頁、抽奇偶頁與合併 PDF。</p>
           </div>
         </div>
         <div class="dropzone" id="dropzone">
@@ -326,7 +392,7 @@
         </div>
       </section>
 
-      <aside class="panel" aria-label="分割設定">
+      <aside class="panel" aria-label="PDF 工具設定">
         <div class="file-card">
           <div class="file-card-top">
             <div class="file-name" id="fileName">尚未選取 PDF</div>
@@ -335,18 +401,59 @@
           <div class="meta" id="fileMeta">選取檔案後會顯示頁數。</div>
         </div>
 
-        <div class="range-head" aria-hidden="true">
-          <span>起始頁</span>
-          <span>結束頁</span>
-          <span>輸出檔名</span>
-          <span></span>
-        </div>
-        <div class="range-list" id="rangeList"></div>
+        <section class="tool-section" aria-label="頁碼範圍分割">
+          <div class="section-title">
+            <strong>範圍分割</strong>
+            <span>可同時輸出多份</span>
+          </div>
+          <div class="range-head" aria-hidden="true">
+            <span>起始頁</span>
+            <span>結束頁</span>
+            <span>輸出檔名</span>
+            <span></span>
+          </div>
+          <div class="range-list" id="rangeList"></div>
+          <div class="actions" style="margin-top: 12px;">
+            <button class="secondary" id="addRange" type="button">新增一組</button>
+            <button class="primary" id="splitPdf" type="button">開始分割</button>
+          </div>
+        </section>
 
-        <div class="actions">
-          <button class="secondary" id="addRange" type="button">新增一組</button>
-          <button class="primary" id="splitPdf" type="button">開始分割</button>
-        </div>
+        <section class="tool-section" aria-label="常用 PDF 功能">
+          <div class="section-title">
+            <strong>常用 PDF 功能</strong>
+            <span>同樣只在本機處理</span>
+          </div>
+          <div class="tool-grid">
+            <div class="quick-actions">
+              <button class="ghost" id="splitEveryPage" type="button">一頁一檔 ZIP</button>
+              <button class="ghost" id="keepOddPages" type="button">只留奇數頁</button>
+              <button class="ghost" id="keepEvenPages" type="button">只留偶數頁</button>
+            </div>
+
+            <div class="tool-row">
+              <input id="deletePages" type="text" placeholder="刪除頁碼，例如 2-4, 7" aria-label="刪除頁碼">
+              <button class="secondary" id="deletePagesButton" type="button">刪頁下載</button>
+            </div>
+
+            <div class="tool-row three">
+              <input id="rotatePages" type="text" placeholder="旋轉頁碼，例如 1, 3-5" aria-label="旋轉頁碼">
+              <select id="rotateDegrees" aria-label="旋轉角度">
+                <option value="90">右轉 90°</option>
+                <option value="180">轉 180°</option>
+                <option value="270">左轉 90°</option>
+              </select>
+              <button class="secondary" id="rotatePagesButton" type="button">旋轉下載</button>
+            </div>
+
+            <div class="tool-row">
+              <button class="secondary" id="chooseMergeFiles" type="button">選取多個 PDF 合併</button>
+              <button class="primary" id="mergePdfs" type="button">合併下載</button>
+            </div>
+            <input class="merge-input" id="mergeFileInput" type="file" accept="application/pdf,.pdf" multiple>
+            <div class="merge-list" id="mergeList">尚未選取要合併的 PDF。</div>
+          </div>
+        </section>
 
         <div class="status" id="status" role="status" aria-live="polite"></div>
         <p class="privacy">所有 PDF 都在你的瀏覽器內處理；檔案不會傳到網站伺服器。</p>
@@ -354,7 +461,7 @@
     </main>
 
     <script>
-      const { PDFDocument } = PDFLib;
+      const { PDFDocument, degrees } = PDFLib;
 
       const dropzone = document.querySelector("#dropzone");
       const fileInput = document.querySelector("#fileInput");
@@ -366,12 +473,25 @@
       const addRangeButton = document.querySelector("#addRange");
       const splitButton = document.querySelector("#splitPdf");
       const chooseFileButton = document.querySelector("#chooseFile");
+      const splitEveryPageButton = document.querySelector("#splitEveryPage");
+      const keepOddPagesButton = document.querySelector("#keepOddPages");
+      const keepEvenPagesButton = document.querySelector("#keepEvenPages");
+      const deletePagesInput = document.querySelector("#deletePages");
+      const deletePagesButton = document.querySelector("#deletePagesButton");
+      const rotatePagesInput = document.querySelector("#rotatePages");
+      const rotateDegreesSelect = document.querySelector("#rotateDegrees");
+      const rotatePagesButton = document.querySelector("#rotatePagesButton");
+      const chooseMergeFilesButton = document.querySelector("#chooseMergeFiles");
+      const mergeFileInput = document.querySelector("#mergeFileInput");
+      const mergePdfsButton = document.querySelector("#mergePdfs");
+      const mergeList = document.querySelector("#mergeList");
       const statusBox = document.querySelector("#status");
 
       let loadedFile = null;
       let loadedBytes = null;
       let loadedPageCount = 0;
       let previewUrl = null;
+      let mergeFiles = [];
 
       addRange();
 
@@ -394,9 +514,9 @@
       dropzone.addEventListener("drop", (event) => {
         event.preventDefault();
         dropzone.classList.remove("is-over");
-        const [file] = [...event.dataTransfer.files].filter((item) => item.type === "application/pdf" || item.name.toLowerCase().endsWith(".pdf"));
-        if (file) {
-          loadPdf(file);
+        const pdfFiles = [...event.dataTransfer.files].filter(isPdfFile);
+        if (pdfFiles.length) {
+          loadPdf(pdfFiles[0]);
         } else {
           setStatus("請放入 PDF 檔案。", "error");
         }
@@ -405,6 +525,18 @@
       addRangeButton.addEventListener("click", () => addRange());
       splitButton.addEventListener("click", splitPdf);
       chooseFileButton.addEventListener("click", () => fileInput.click());
+      splitEveryPageButton.addEventListener("click", splitEveryPage);
+      keepOddPagesButton.addEventListener("click", () => keepPageParity("odd"));
+      keepEvenPagesButton.addEventListener("click", () => keepPageParity("even"));
+      deletePagesButton.addEventListener("click", deletePagesAndDownload);
+      rotatePagesButton.addEventListener("click", rotatePagesAndDownload);
+      chooseMergeFilesButton.addEventListener("click", () => mergeFileInput.click());
+      mergePdfsButton.addEventListener("click", mergePdfsAndDownload);
+
+      mergeFileInput.addEventListener("change", () => {
+        mergeFiles = [...mergeFileInput.files].filter(isPdfFile);
+        renderMergeList();
+      });
 
       async function loadPdf(file) {
         try {
@@ -427,7 +559,7 @@
           fileMeta.textContent = `${loadedPageCount} 頁 · ${formatBytes(file.size)}`;
           chooseFileButton.textContent = "更換 PDF";
           setDefaultFirstRange();
-          setStatus("PDF 已載入，可以填寫頁碼範圍。", "ok");
+          setStatus("PDF 已載入，可以開始處理。", "ok");
         } catch (error) {
           resetLoadedFile();
           setStatus(`讀取失敗：${error.message}`, "error");
@@ -471,54 +603,170 @@
       }
 
       async function splitPdf() {
-        if (!loadedBytes || !loadedFile) {
-          setStatus("請先選取一個 PDF。", "error");
-          return;
-        }
+        if (!ensureMainPdf()) return;
 
         const ranges = getRanges();
-        if (!ranges.length) {
-          return;
-        }
+        if (!ranges.length) return;
 
-        try {
-          splitButton.disabled = true;
+        await runWithBusy(splitButton, async () => {
           setStatus("正在分割 PDF...");
-
           const sourcePdf = await PDFDocument.load(loadedBytes);
           const outputs = [];
 
           for (const [index, range] of ranges.entries()) {
-            const newPdf = await PDFDocument.create();
-            const pageIndexes = [];
-            for (let page = range.from; page <= range.to; page += 1) {
-              pageIndexes.push(page - 1);
-            }
-            const copiedPages = await newPdf.copyPages(sourcePdf, pageIndexes);
-            copiedPages.forEach((page) => newPdf.addPage(page));
-
-            const bytes = await newPdf.save();
+            const pageIndexes = rangeToIndexes(range.from, range.to);
+            const bytes = await createPdfFromIndexes(sourcePdf, pageIndexes);
             outputs.push({
-              filename: buildFilename(range, index),
+              filename: buildRangeFilename(range, index),
               bytes
             });
           }
 
-          if (outputs.length === 1) {
-            downloadBlob(new Blob([outputs[0].bytes], { type: "application/pdf" }), outputs[0].filename);
-            setStatus(`完成：已產出 ${outputs[0].filename}`, "ok");
-          } else {
-            const zip = new JSZip();
-            outputs.forEach((output) => zip.file(output.filename, output.bytes));
-            const zipBlob = await zip.generateAsync({ type: "blob" });
-            downloadBlob(zipBlob, `${baseName(loadedFile.name)}-split.zip`);
-            setStatus(`完成：已打包 ${outputs.length} 個 PDF。`, "ok");
+          await downloadOutputs(outputs, `${baseName(loadedFile.name)}-split.zip`);
+        }, "分割失敗");
+      }
+
+      async function splitEveryPage() {
+        if (!ensureMainPdf()) return;
+
+        await runWithBusy(splitEveryPageButton, async () => {
+          setStatus("正在拆成單頁 PDF...");
+          const sourcePdf = await PDFDocument.load(loadedBytes);
+          const outputs = [];
+          for (let index = 0; index < loadedPageCount; index += 1) {
+            const bytes = await createPdfFromIndexes(sourcePdf, [index]);
+            outputs.push({
+              filename: `${baseName(loadedFile.name)}-page-${index + 1}.pdf`,
+              bytes
+            });
           }
-        } catch (error) {
-          setStatus(`分割失敗：${error.message}`, "error");
-        } finally {
-          splitButton.disabled = false;
+          await downloadOutputs(outputs, `${baseName(loadedFile.name)}-single-pages.zip`);
+        }, "拆單頁失敗");
+      }
+
+      async function keepPageParity(mode) {
+        if (!ensureMainPdf()) return;
+
+        const button = mode === "odd" ? keepOddPagesButton : keepEvenPagesButton;
+        const label = mode === "odd" ? "odd-pages" : "even-pages";
+        const display = mode === "odd" ? "奇數頁" : "偶數頁";
+
+        await runWithBusy(button, async () => {
+          setStatus(`正在保留${display}...`);
+          const sourcePdf = await PDFDocument.load(loadedBytes);
+          const indexes = [...Array(loadedPageCount).keys()].filter((index) => {
+            const pageNumber = index + 1;
+            return mode === "odd" ? pageNumber % 2 === 1 : pageNumber % 2 === 0;
+          });
+
+          if (!indexes.length) {
+            throw new Error(`這份 PDF 沒有可輸出的${display}。`);
+          }
+
+          const bytes = await createPdfFromIndexes(sourcePdf, indexes);
+          downloadPdf(bytes, `${baseName(loadedFile.name)}-${label}.pdf`);
+          setStatus(`完成：已輸出${display}。`, "ok");
+        }, "抽頁失敗");
+      }
+
+      async function deletePagesAndDownload() {
+        if (!ensureMainPdf()) return;
+
+        const selected = parsePageSelection(deletePagesInput.value, loadedPageCount);
+        if (!selected.ok) {
+          setStatus(selected.message, "error");
+          return;
         }
+
+        await runWithBusy(deletePagesButton, async () => {
+          setStatus("正在刪除指定頁...");
+          const removeSet = new Set(selected.indexes);
+          const keepIndexes = [...Array(loadedPageCount).keys()].filter((index) => !removeSet.has(index));
+
+          if (!keepIndexes.length) {
+            throw new Error("刪除後沒有剩餘頁面，請保留至少 1 頁。");
+          }
+
+          const sourcePdf = await PDFDocument.load(loadedBytes);
+          const bytes = await createPdfFromIndexes(sourcePdf, keepIndexes);
+          downloadPdf(bytes, `${baseName(loadedFile.name)}-deleted-pages.pdf`);
+          setStatus(`完成：已刪除 ${selected.indexes.length} 頁。`, "ok");
+        }, "刪頁失敗");
+      }
+
+      async function rotatePagesAndDownload() {
+        if (!ensureMainPdf()) return;
+
+        const selected = parsePageSelection(rotatePagesInput.value, loadedPageCount);
+        if (!selected.ok) {
+          setStatus(selected.message, "error");
+          return;
+        }
+
+        await runWithBusy(rotatePagesButton, async () => {
+          setStatus("正在旋轉指定頁...");
+          const rotation = Number(rotateDegreesSelect.value);
+          const rotateSet = new Set(selected.indexes);
+          const pdf = await PDFDocument.load(loadedBytes);
+
+          pdf.getPages().forEach((page, index) => {
+            if (!rotateSet.has(index)) return;
+            const currentAngle = page.getRotation().angle || 0;
+            page.setRotation(degrees((currentAngle + rotation) % 360));
+          });
+
+          const bytes = await pdf.save();
+          downloadPdf(bytes, `${baseName(loadedFile.name)}-rotated.pdf`);
+          setStatus(`完成：已旋轉 ${selected.indexes.length} 頁。`, "ok");
+        }, "旋轉失敗");
+      }
+
+      async function mergePdfsAndDownload() {
+        if (!mergeFiles.length) {
+          setStatus("請先選取 2 個以上要合併的 PDF。", "error");
+          return;
+        }
+
+        if (mergeFiles.length < 2) {
+          setStatus("合併至少需要 2 個 PDF。", "error");
+          return;
+        }
+
+        await runWithBusy(mergePdfsButton, async () => {
+          setStatus("正在合併 PDF...");
+          const mergedPdf = await PDFDocument.create();
+
+          for (const file of mergeFiles) {
+            const pdf = await PDFDocument.load(await file.arrayBuffer());
+            const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+            copiedPages.forEach((page) => mergedPdf.addPage(page));
+          }
+
+          const bytes = await mergedPdf.save();
+          downloadPdf(bytes, "merged.pdf");
+          setStatus(`完成：已合併 ${mergeFiles.length} 個 PDF。`, "ok");
+        }, "合併失敗");
+      }
+
+      async function createPdfFromIndexes(sourcePdf, pageIndexes) {
+        const newPdf = await PDFDocument.create();
+        const copiedPages = await newPdf.copyPages(sourcePdf, pageIndexes);
+        copiedPages.forEach((page) => newPdf.addPage(page));
+        return newPdf.save();
+      }
+
+      async function downloadOutputs(outputs, zipFilename) {
+        if (outputs.length === 1) {
+          downloadPdf(outputs[0].bytes, outputs[0].filename);
+          setStatus(`完成：已產出 ${outputs[0].filename}`, "ok");
+          return;
+        }
+
+        const zip = new JSZip();
+        outputs.forEach((output) => zip.file(output.filename, output.bytes));
+        const zipBlob = await zip.generateAsync({ type: "blob" });
+        downloadBlob(zipBlob, zipFilename);
+        setStatus(`完成：已打包 ${outputs.length} 個 PDF。`, "ok");
       }
 
       function getRanges() {
@@ -559,9 +807,89 @@
         return ranges;
       }
 
-      function buildFilename(range, index) {
+      function parsePageSelection(value, pageCount) {
+        const raw = value.trim();
+        if (!raw) {
+          return { ok: false, message: "請輸入頁碼，例如 2-4, 7。" };
+        }
+
+        const indexes = new Set();
+        const parts = raw.split(",").map((part) => part.trim()).filter(Boolean);
+
+        for (const part of parts) {
+          const match = part.match(/^(\d+)(?:\s*-\s*(\d+))?$/);
+          if (!match) {
+            return { ok: false, message: `頁碼格式不正確：${part}` };
+          }
+
+          const start = Number(match[1]);
+          const end = Number(match[2] || match[1]);
+
+          if (start < 1 || end < 1 || start > pageCount || end > pageCount) {
+            return { ok: false, message: `頁碼需介於 1 到 ${pageCount}。` };
+          }
+
+          if (start > end) {
+            return { ok: false, message: `頁碼範圍不可倒置：${part}` };
+          }
+
+          for (let page = start; page <= end; page += 1) {
+            indexes.add(page - 1);
+          }
+        }
+
+        return { ok: true, indexes: [...indexes].sort((a, b) => a - b) };
+      }
+
+      function rangeToIndexes(from, to) {
+        const indexes = [];
+        for (let page = from; page <= to; page += 1) {
+          indexes.push(page - 1);
+        }
+        return indexes;
+      }
+
+      function buildRangeFilename(range, index) {
         const label = sanitizeFilename(range.label || `split-${index + 1}`);
         return `${label}-p${range.from}-${range.to}.pdf`;
+      }
+
+      function renderMergeList() {
+        if (!mergeFiles.length) {
+          mergeList.textContent = "尚未選取要合併的 PDF。";
+          return;
+        }
+
+        mergeList.innerHTML = "";
+        mergeFiles.forEach((file, index) => {
+          const item = document.createElement("div");
+          item.className = "merge-file";
+          item.textContent = `${index + 1}. ${file.name} · ${formatBytes(file.size)}`;
+          mergeList.append(item);
+        });
+      }
+
+      async function runWithBusy(button, action, errorLabel) {
+        try {
+          button.disabled = true;
+          await action();
+        } catch (error) {
+          setStatus(`${errorLabel}：${error.message}`, "error");
+        } finally {
+          button.disabled = false;
+        }
+      }
+
+      function ensureMainPdf() {
+        if (!loadedBytes || !loadedFile) {
+          setStatus("請先選取一個 PDF。", "error");
+          return false;
+        }
+        return true;
+      }
+
+      function downloadPdf(bytes, filename) {
+        downloadBlob(new Blob([bytes], { type: "application/pdf" }), filename);
       }
 
       function downloadBlob(blob, filename) {
@@ -592,12 +920,16 @@
         chooseFileButton.textContent = "選取 PDF";
       }
 
+      function isPdfFile(file) {
+        return file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+      }
+
       function baseName(name) {
         return sanitizeFilename(name.replace(/\.pdf$/i, ""));
       }
 
       function sanitizeFilename(value) {
-        return value.replace(/[\\/:*?"<>|]/g, "-").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "") || "split";
+        return value.replace(/[\\/:*?"<>|]/g, "-").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "") || "pdf";
       }
 
       function escapeAttribute(value) {
